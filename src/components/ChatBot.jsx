@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 
 // ── API endpoints ──────────────────────────────────────────────────────────────
-const GEMINI_URL     = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
-const GEMINI_TTS_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent'
+const OPENAI_URL     = 'https://api.openai.com/v1/chat/completions'
 const OPENAI_TTS_URL = 'https://api.openai.com/v1/audio/speech'
+const GEMINI_TTS_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent'
 
 // ── Keys from .env ─────────────────────────────────────────────────────────────
 const ENV_GOOGLE_KEY = import.meta.env.VITE_GOOGLE_KEY || ''
@@ -149,7 +149,6 @@ export default function ChatBot() {
     try { return JSON.parse(localStorage.getItem('rl_bookings') || '[]') } catch { return [] }
   })
 
-  const systemContentRef = useRef('')
   const historyRef       = useRef([])
   const recognitionRef   = useRef(null)
   const messagesEndRef   = useRef(null)
@@ -360,7 +359,7 @@ export default function ChatBot() {
     setIsListening(true)
   }, [])
 
-  // ── Send → Gemini → speak → listen ────────────────────────────────────────
+  // ── Send → OpenAI GPT-4o → Gemini TTS → listen ───────────────────────────
   const sendMessageRef = useRef(null)
 
   const sendMessage = useCallback(async (text) => {
@@ -382,30 +381,35 @@ export default function ChatBot() {
     setInput('')
     setIsLoading(true)
 
-    const userMsg  = { role: 'user',  parts: [{ text: text.trim() }] }
-    const contents = [...historyRef.current, userMsg]
+    // OpenAI format: system message is historyRef[0], roles are user/assistant
+    const history = [...historyRef.current, { role: 'user', content: text.trim() }]
+    historyRef.current = history
 
     try {
-      const res = await fetch(`${GEMINI_URL}?key=${ENV_GOOGLE_KEY}`, {
+      const res = await fetch(OPENAI_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${ENV_OPENAI_KEY}`,
+        },
         body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemContentRef.current }] },
-          contents,
-          generationConfig: { temperature: 0.7, maxOutputTokens: 500 },
+          model: 'gpt-4o',
+          messages: history,
+          temperature: 0.7,
+          max_tokens: 500,
         }),
       })
       if (!res.ok) {
         const err = await res.json()
-        throw new Error(err.error?.message || `Gemini error ${res.status}`)
+        throw new Error(err.error?.message || `OpenAI error ${res.status}`)
       }
       const data     = await res.json()
-      const rawReply = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+      const rawReply = data.choices[0].message.content
 
       const booking     = extractBooking(rawReply)
       const displayText = cleanBotText(rawReply)
 
-      historyRef.current = [...contents, { role: 'model', parts: [{ text: rawReply }] }]
+      historyRef.current = [...history, { role: 'assistant', content: rawReply }]
 
       if (booking) {
         const newBooking = {
@@ -415,7 +419,8 @@ export default function ChatBot() {
         }
         setBookings(prev => {
           const updated = [...prev, newBooking]
-          systemContentRef.current = buildSystemMessage(langRef.current, updated)
+          // Update system message in history[0] with new booking list
+          historyRef.current[0] = { role: 'system', content: buildSystemMessage(langRef.current, updated) }
           return updated
         })
         addMsg('bot', displayText)
@@ -443,9 +448,8 @@ export default function ChatBot() {
   const selectLanguage = useCallback((selectedLang) => {
     const speechLang = selectedLang === 'si' ? 'si-LK' : 'en-US'
     setLang(selectedLang)
-    langRef.current          = selectedLang
-    systemContentRef.current = buildSystemMessage(selectedLang, bookingsRef.current)
-    historyRef.current       = []
+    langRef.current    = selectedLang
+    historyRef.current = [{ role: 'system', content: buildSystemMessage(selectedLang, bookingsRef.current) }]
 
     const greeting = GREETINGS[selectedLang]
     setMessages([{ sender: 'bot', text: greeting, time: formatTime() }])
@@ -625,7 +629,7 @@ export default function ChatBot() {
         <div className="chat-footer">
           <span>Royal Lanka Hotels © 2025</span>
           <span className="dot">·</span>
-          <span className="tts-badge">Gemini 1.5 Flash · Gemini TTS</span>
+          <span className="tts-badge">GPT-4o · Gemini TTS</span>
           {bookings.length > 0 && (
             <>
               <span className="dot">·</span>
