@@ -102,13 +102,22 @@ function buildSystemMessage(lang, bookings) {
 DATE RULE: Always resolve relative dates ("ලබන මාස දෙවැනිදා", "next Friday", "tomorrow") to YYYY-MM-DD using today's date. State the resolved date back to the guest before confirming.`
 
   const bookedList = bookings.length
-    ? '\n\nEXISTING BOOKINGS (check conflicts before confirming):\n' +
+    ? '\n\nEXISTING BOOKINGS:\n' +
       bookings.map(b => `• ${b.room}: ${b.checkin} to ${b.checkout} (Guest: ${b.name})`).join('\n')
-    : '\n\nEXISTING BOOKINGS: None yet.'
+    : '\n\nEXISTING BOOKINGS: None.'
 
-  const rule = `\n\nBOOKING CONFIRMATION RULE: Once you have ALL details (name, room type, check-in YYYY-MM-DD, check-out YYYY-MM-DD, contact) AND no conflict exists, append EXACTLY at the very end:\nBOOKING_CONFIRMED:{"name":"VALUE","room":"VALUE","checkin":"YYYY-MM-DD","checkout":"YYYY-MM-DD","nights":N,"total":N,"contact":"VALUE"}`
+  const conflictRule = `\n\nCONFLICT CHECK RULE (very important):
+A conflict ONLY exists when ALL three conditions are true simultaneously:
+  1. The room TYPE is the same (e.g. both Deluxe)
+  2. AND the requested check-in date is BEFORE the existing check-out date
+  3. AND the requested check-out date is AFTER the existing check-in date
+If the dates do NOT overlap (even for the same room type), the booking is ALLOWED.
+Example: existing Deluxe Apr-01 to Apr-04 does NOT conflict with a new Deluxe Mar-20 to Mar-22.
+Do NOT block a booking just because the same guest name appears in another booking on different dates.`
 
-  return BASE_PROMPTS[lang] + dateCtx + bookedList + rule
+  const rule = `\n\nBOOKING CONFIRMATION RULE: Once you have ALL details (name, room type, check-in YYYY-MM-DD, check-out YYYY-MM-DD, contact) AND no conflict exists per the rule above, append EXACTLY at the very end:\nBOOKING_CONFIRMED:{"name":"VALUE","room":"VALUE","checkin":"YYYY-MM-DD","checkout":"YYYY-MM-DD","nights":N,"total":N,"contact":"VALUE"}`
+
+  return BASE_PROMPTS[lang] + dateCtx + bookedList + conflictRule + rule
 }
 
 // ── Quick actions & greetings ──────────────────────────────────────────────────
