@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 
 // ── API endpoints ──────────────────────────────────────────────────────────────
-const GEMINI_URL     = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
+const GEMINI_URL     = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
 const GEMINI_TTS_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent'
 const OPENAI_TTS_URL = 'https://api.openai.com/v1/audio/speech'
 
@@ -625,7 +625,7 @@ export default function ChatBot() {
         <div className="chat-footer">
           <span>Royal Lanka Hotels © 2025</span>
           <span className="dot">·</span>
-          <span className="tts-badge">Gemini 2.0 · Gemini TTS</span>
+          <span className="tts-badge">Gemini 1.5 Flash · Gemini TTS</span>
           {bookings.length > 0 && (
             <>
               <span className="dot">·</span>
