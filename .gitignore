@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Environment variables — NEVER commit API keys
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
+
+# Vite cache
+.vite/
+node_modules/.vite/
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# OS
+.DS_Store
+Thumbs.db
