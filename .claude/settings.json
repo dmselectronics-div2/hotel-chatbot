@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth:*)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" auth login --web)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" auth status)"
+    ]
+  }
+}
